@@ -1,0 +1,37 @@
+{% load custom_tags %}
+
+<div class="modal fade" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{% if pk %}Edit{% else %}Add{% endif %} Person</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{% if pk %}{% url 'edit_person' pk %}{% else %}{% url 'add_person' %}{% endif %}" data-pk="{{ pk }}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">Name</label>
+                        {{ form.name|add_class:"form-control" }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_dob" class="form-label">Date of Birth</label>
+                        <input type="text" class="form-control datepicker" name="dob" id="id_dob" value="{{ form.dob.value|date:'Y-m-d' }}" required autocomplete="off">
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_mobile" class="form-label">Mobile</label>
+                        {{ form.mobile|add_class:"form-control" }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_email" class="form-label">Email</label>
+                        {{ form.email|add_class:"form-control" }}
+                    </div>
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,206 @@
+{% extends 'demoapp/base.html' %}
+
+{% block content %}
+{% csrf_token %}
+<h1 class="mb-4">Person Records</h1>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label for="dateFrom" class="form-label">From Date</label>
+                    <input type="text" class="form-control" id="dateFrom" autocomplete="off">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label for="dateTo" class="form-label">To Date</label>
+                    <input type="text" class="form-control" id="dateTo" autocomplete="off">
+                </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-secondary me-2" id="filterDates">Filter</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<button class="btn btn-primary mb-3" id="addPerson">Add Person</button>
+<table id="personsTable" class="display">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>DOB</th>
+            <th>Mobile</th>
+            <th>Email</th>
+            <th>Added On</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for person in persons %}
+            {% include 'demoapp/person_row.html' %}
+        {% endfor %}
+    </tbody>
+</table>
+
+<div id="modalContainer"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function () {
+        let table = $('#personsTable').DataTable({
+            dom: 'Bfrtip',
+            buttons: [
+                {
+                    extend: 'excel',
+                    text: 'Export to Excel',
+                    filename: function() {
+                        return 'persons_data_' + new Date().toISOString().split('T')[0];
+                    },
+                    exportOptions: {
+                        columns: [0, 1, 2, 3, 4]
+                    }
+                }
+            ],
+            columnDefs: [
+                {
+                    targets: -1,
+                    orderable: false
+                }
+            ]
+        });
+
+        $('#filterDates').on('click', function() {
+            let fromDate = $('#dateFrom').val();
+            let toDate = $('#dateTo').val();
+            
+            $.ajax({
+                url: '{% url "filter_persons" %}',
+                method: 'GET',
+                data: {
+                    from_date: fromDate,
+                    to_date: toDate
+                },
+                success: function(response) {
+                    table.clear();
+                    
+                    for (let i = 0; i < response.html.length; i++) {
+                        table.row.add($(response.html[i]));
+                    }
+                    table.draw();
+                }
+            });
+        });
+
+        function handleAjax(url, method, data = {}, callback) {
+            $.ajax({
+                url: url,
+                method: method,
+                headers: {
+                    'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val()
+                },
+                data: data,
+                success: callback,
+                error: function () {
+                    toastr.error('An unexpected error occurred.');
+                }
+            });
+        }
+
+        // Initialize date range pickers
+        $('#dateFrom, #dateTo').datepicker({
+            dateFormat: 'yy-mm-dd',
+            maxDate: new Date(),
+            changeMonth: true,
+            changeYear: true
+        });
+
+        function initModalDatepicker() {
+            setTimeout(function() {
+                $('.modal .datepicker').datepicker({
+                    dateFormat: 'yy-mm-dd',
+                    maxDate: new Date(),
+                    changeMonth: true,
+                    changeYear: true,
+                    yearRange: '1900:' + new Date().getFullYear(),
+                    beforeShow: function(input, inst) {
+                        // Ensure datepicker appears above modal
+                        inst.dpDiv.css({
+                            marginTop: '10px',
+                            zIndex: 1056
+                        });
+                    }
+                });
+            }, 100); // Small delay to ensure modal is fully rendered
+        }
+
+        $('#addPerson').on('click', function () {
+            handleAjax('{% url "add_person" %}', 'GET', {}, function (data) {
+                $('#modalContainer').html(data.html);
+                const modal = $('#modalContainer .modal');
+                modal.modal('show');
+                initModalDatepicker();
+            });
+        });
+
+        $('tbody').on('click', '.editPerson', function () {
+            handleAjax($(this).data('url'), 'GET', {}, function (data) {
+                $('#modalContainer').html(data.html);
+                const modal = $('#modalContainer .modal');
+                modal.modal('show');
+                initModalDatepicker();
+            });
+        });
+
+        $('tbody').on('click', '.deletePerson', function () {
+            handleAjax($(this).data('url'), 'GET', {}, function (data) {
+                $('#modalContainer').html(data.html);
+                const modal = $('#modalContainer .modal');
+                modal.modal('show');
+            });
+        });
+
+        $('#modalContainer').on('click', '#confirmDelete', function () {
+            let url = $(this).data('url');
+            handleAjax(url, 'POST', {}, function (data) {
+                if (data.success) {
+                    toastr.success('Person deleted successfully!');
+                    let rowId = `#row-${data.pk}`;
+                    table.row($(rowId)).remove().draw();
+                    $('#modalContainer .modal').modal('hide');
+                }
+            });
+        });
+
+        $('#modalContainer').on('submit', 'form', function (e) {
+            e.preventDefault();
+            let $form = $(this);
+            let formData = $form.serialize();
+            
+            handleAjax($form.attr('action'), 'POST', formData, function (data) {
+                if (data.success) {
+                    toastr.success('Person saved successfully!');
+                    $('#modalContainer .modal').modal('hide');
+                    if ($form.data('pk')) {
+                        let rowId = `#row-${$form.data('pk')}`;
+                        table.row($(rowId)).remove();
+                        table.row.add($(data.html)).draw();
+                    } else {
+                        table.row.add($(data.html)).draw();
+                    }
+                } else {
+                    let errors = JSON.parse(data.errors);
+                    for (let field in errors) {
+                        errors[field].forEach(error => {
+                            toastr.error(`${field}: ${error}`);
+                        });
+                    }
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

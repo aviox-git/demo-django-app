@@ -1,0 +1,11 @@
+<tr id="row-{{ person.id }}">
+    <td>{{ person.name }}</td>
+    <td>{{ person.dob|date:"Y-m-d" }}</td>
+    <td>{{ person.mobile }}</td>
+    <td>{{ person.email }}</td>
+    <td>{{ person.created_at|date:"Y-m-d" }}</td>
+    <td>
+        <button class="btn btn-warning btn-sm editPerson" data-url="{% url 'edit_person' person.id %}">Edit</button>
+        <button class="btn btn-danger btn-sm deletePerson" data-url="{% url 'delete_person' person.id %}">Delete</button>
+    </td>
+</tr>
