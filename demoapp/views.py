@@ -21,9 +21,14 @@ def login_view(request):
             login(request, user)
             return redirect('dashboard')
         else:
-            messages.error(request, 'Invalid username or password')
+            messages.error(request, 'Invalid username or password.')
     
     return render(request, 'demoapp/login.html')
+
+def logout_view(request):
+    logout(request)
+    messages.success(request, 'You have been successfully logged out.')
+    return redirect('login')
 
 @login_required
 def dashboard(request):
